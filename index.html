@@ -168,27 +168,27 @@
   
 
   #panel-editor{
-    --bg:#0d1117;
-    --surface:#141a21;
-    --surface2:#1b232b;
-    --ink:#e7eaed;
-    --ink-soft:#8b96a3;
-    --ink-faint:#4c5661;
+    --bg:#f5f7fa;
+    --surface:#ffffff;
+    --surface2:#eef1f5;
+    --ink:#1a2332;
+    --ink-soft:#5b6673;
+    --ink-faint:#9aa3ad;
     --accent:#4d8fc4;
-    --accent-dark:#6fa8d6;
-    --accent-bg:#122530;
-    --line:#242c35;
-    --line-strong:#323c47;
+    --accent-dark:#2d6ba0;
+    --accent-bg:#e8f1f9;
+    --line:#e5e9ee;
+    --line-strong:#cfd6de;
     --ok:#4f9d6e;
-    --ok-bg:#132a1e;
-    --err:#cf6b66;
-    --err-bg:#2c1717;
+    --ok-bg:#e8f5ec;
+    --err:#c1443f;
+    --err-bg:#fbe9e8;
     --warn:#c9a648;
-    --warn-bg:#2a230f;
-    --busy-bg:#1a2129;
+    --warn-bg:#fbf3d8;
+    --busy-bg:#eef1f5;
     --radius:12px;
     --radius-lg:16px;
-    --shadow:0 16px 36px rgba(0,0,0,.38);
+    --shadow:0 8px 24px rgba(30,50,80,.08);
     --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
     --serif:'Fraunces', Georgia, serif;
     --sans:'Inter', system-ui, -apple-system, sans-serif;
@@ -211,18 +211,18 @@
   #panel-editor .eyebrow{
     display:inline-flex; align-items:center; gap:8px;
     font-family:var(--mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase;
-    color:var(--accent-dark); background:var(--accent-bg); border:1px solid #223a49;
+    color:var(--accent-dark); background:var(--accent-bg); border:1px solid #cfe2f0;
     padding:5px 11px; border-radius:999px; margin-bottom:16px;
   }
   #panel-editor h1{
     font-family:var(--serif); font-weight:600; font-size:clamp(26px,3.6vw,36px);
-    margin:0 0 10px; letter-spacing:-0.01em; line-height:1.12; color:#f2f3f4;
+    margin:0 0 10px; letter-spacing:-0.01em; line-height:1.12; color:#0d1a2b;
   }
   #panel-editor header p{margin:0; color:var(--ink-soft); font-size:14.5px; max-width:600px; line-height:1.6;}
 
   #panel-editor .stamp-editor{
     font-family:var(--mono); font-size:11px; letter-spacing:1.4px; text-transform:uppercase;
-    color:var(--accent-dark); border:1.5px solid #2c4a5c; border-radius:999px; padding:8px 16px;
+    color:var(--accent-dark); border:1.5px solid #cfe2f0; border-radius:999px; padding:8px 16px;
     transform:rotate(3deg); white-space:nowrap; flex-shrink:0; margin-top:4px; background:var(--accent-bg);
   }
 
@@ -237,7 +237,7 @@
     padding:22px 24px; margin-bottom:20px; box-shadow:var(--shadow);
   }
   #panel-editor .panel h2{
-    font-family:var(--serif); font-weight:600; font-size:16.5px; margin:0 0 4px; color:#f0f1f2;
+    font-family:var(--serif); font-weight:600; font-size:16.5px; margin:0 0 4px; color:#0d1a2b;
   }
   #panel-editor .panel .hint{color:var(--ink-soft); font-size:13.5px; margin:0 0 18px; line-height:1.55;}
 
@@ -248,7 +248,7 @@
   }
   #panel-editor .dropzone:hover{ border-color:var(--accent); }
   #panel-editor .dropzone.drag{ background:var(--accent-bg); border-color:var(--accent); }
-  #panel-editor .dropzone strong{font-family:var(--serif); font-size:15.5px; font-weight:600; color:#f0f1f2;}
+  #panel-editor .dropzone strong{font-family:var(--serif); font-size:15.5px; font-weight:600; color:#0d1a2b;}
   #panel-editor .dropzone p{margin:6px 0 0; color:var(--ink-soft); font-size:13.5px;}
   #panel-editor .dropzone input{display:none;}
 
@@ -372,7 +372,7 @@
   }
   #panel-editor .confirm-box .icon svg{width:20px; height:20px;}
   #panel-editor .confirm-box h3{
-    font-family:var(--serif); font-size:19px; font-weight:600; margin:0 0 8px; color:#f0f1f2;
+    font-family:var(--serif); font-size:19px; font-weight:600; margin:0 0 8px; color:#0d1a2b;
   }
   #panel-editor .confirm-box p{ color:var(--ink-soft); font-size:13.5px; margin:0 0 22px; line-height:1.55; }
   #panel-editor .confirm-actions{ display:flex; gap:10px; justify-content:center; }
@@ -531,7 +531,7 @@
   <header>
     <div class="header-row">
       <div class="header-copy">
-        <span class="eyebrow">● 3 formatos reconocidos: El Machetazo · Jumbo Market · PriceSmart</span>
+        <span class="eyebrow">● v12 · 3 formatos reconocidos: El Machetazo · Jumbo Market · PriceSmart</span>
         <h1>De orden de pedido en PDF<br>a planilla de Excel</h1>
         <p>Sube uno o varios PDF de órdenes de pedido, revisa y corrige las líneas extraídas, y exporta una sola hoja de Excel con código de barras, descripción, cantidad, precio unitario y total — con el archivo de origen en cada fila. Detecta automáticamente el formato de cada PDF.</p>
       </div>
@@ -542,6 +542,9 @@
     </div>
   </header>
 
+  <div style="margin-bottom:12px;text-align:right;">
+    <button class="btn-ghost" id="debugRawBtn" style="font-size:11px;padding:6px 12px;">🔍 Ver texto crudo del último PDF</button>
+  </div>
   <section class="panel">
     <h2>1. Cargar PDF</h2>
     <p class="hint">Arrastra los archivos aquí o haz clic para seleccionarlos. Puedes cargar varios pedidos a la vez.</p>
@@ -896,6 +899,19 @@ const emptyState = document.getElementById('emptyState');
 const countTag = document.getElementById('countTag');
 const exportBtn = document.getElementById('exportBtn');
 
+document.getElementById('debugRawBtn').addEventListener('click', () => {
+  if (!window._lastPdfText){
+    alert('Todavía no se ha procesado ningún PDF.');
+    return;
+  }
+  const preview = window._lastPdfText.substring(0, 4000);
+  // Copiar al portapapeles y mostrar en alert
+  navigator.clipboard.writeText(window._lastPdfText).then(()=>{
+    alert('📋 Texto copiado al portapapeles.\n\nArchivo: ' + window._lastPdfName + '\nLongitud: ' + window._lastPdfText.length + ' caracteres\n\n--- Primeros 4000 caracteres ---\n\n' + preview);
+  }).catch(()=>{
+    alert('Archivo: ' + window._lastPdfName + '\nLongitud: ' + window._lastPdfText.length + '\n\n--- Primeros 4000 caracteres ---\n\n' + preview);
+  });
+});
 document.getElementById('clearFilesBtn').addEventListener('click', () => {
   fileListEl.innerHTML = '';
   fileListHeader.style.display = 'none';
@@ -1026,7 +1042,10 @@ async function parsePdf(arrayBuffer, fileName){
   for (let p = 1; p <= pdf.numPages; p++){
     allPageRows.push(getPageRows(await (await pdf.getPage(p)).getTextContent()));
   }
-  const format = detectFormat(allPageRows.flat().join(' '));
+  const rawText = allPageRows.flat().join(' ');
+  window._lastPdfText = rawText;   // guarda para debug
+  window._lastPdfName = fileName;
+  const format = detectFormat(rawText);
   if (format === 'unknown') return { rows: [], flagged: 0, format };
 
   for (const rows of allPageRows){
@@ -1059,39 +1078,77 @@ async function parsePdf(arrayBuffer, fileName){
 // escáner GLOBAL sobre el texto completo, no un parser por línea.
 function parseFormat1_All(text){
   const s = text.replace(/\s+/g, ' ').trim();
-  // Grupos: (1)LN (2)codigoCombinado (3)DESC (4)CANT (5)UND (6)COSTO (7)TOTAL
-  const re = /(\d{1,4})\s+(\d[\d_]{10,27})\s+(.+?)\s+(\d+\.\d{2})\s+(\d{1,5})\s+(\d+\.\d+)\s+0\.00\s*%\.?\s+0\.00\s*%\.?\s+0\.00\s+(\d+\.\d{2})(?=\s+\d{1,4}\s+\d[\d_]{10}|\s+CAJAS|\s*$)/g;
+  const tokens = s.split(' ');
   const items = [];
-  let m;
-  while ((m = re.exec(s)) !== null){
-    const raw = m[2];
-    let codigo;
-    if (raw.indexOf('_') !== -1){
-      // La referencia se rellena con '_' cuando es más corta que la columna
-      codigo = raw.split('_')[0];
-    } else if (raw.length >= 22 && /^\d+$/.test(raw)){
-      // UPC + REF pegados sin separador: el UPC es la primera mitad
-      codigo = raw.substring(0, Math.floor(raw.length/2));
-    } else {
-      codigo = raw;
+  const isUPC = t => /^\d{12,13}$/.test(t);
+  const isRef = t => /^\d[\d_]{7,13}$/.test(t);
+  const isDec4 = t => /^\d+\.\d{4}$/.test(t);
+  const isDec3 = t => /^\d+\.\d{3}$/.test(t);
+  const isDec2 = t => /^\d+\.\d{2}$/.test(t);
+  const isInt = t => /^\d{1,5}$/.test(t);
+
+  for (let i = 0; i < tokens.length - 8; i++){
+    if (!isUPC(tokens[i])) continue;
+    if (!isRef(tokens[i+1])) continue;
+
+    // Buscar COSTO (d.dddd)
+    let costoIdx = -1;
+    for (let j = i+3; j < Math.min(i+20, tokens.length); j++){
+      if (isDec4(tokens[j])){ costoIdx = j; break; }
     }
-    const descripcion = m[3].trim();
-    const cantidad = parseFloat(m[4]);
-    const precio = parseFloat(m[6]);
-    const total = parseFloat(m[7]);
+    if (costoIdx === -1) continue;
+    if (!isInt(tokens[costoIdx-1])) continue;   // UND_CAJA
+
+    // ==== Buscar CANTIDAD (d.ddd) — puede estar ANTES o DESPUÉS del COSTO ====
+    let cantidad = NaN;
+    let cantidadIdxBefore = -1;
+
+    // 1) Buscar ANTES de UND_CAJA (recorrer hacia atrás desde costoIdx-2 hasta i+2)
+    for (let k = costoIdx - 2; k > i + 1; k--){
+      if (isDec3(tokens[k])){
+        cantidad = parseFloat(tokens[k]);
+        cantidadIdxBefore = k;
+        break;
+      }
+    }
+
+    // 2) Si no se encontró antes, buscar DESPUÉS del COSTO
+    if (isNaN(cantidad)){
+      for (let j = costoIdx+1; j < Math.min(costoIdx+12, tokens.length); j++){
+        if (isDec3(tokens[j])){ cantidad = parseFloat(tokens[j]); break; }
+      }
+    }
+
+    // Descripción: hasta CANTIDAD (si estaba antes) o hasta UND_CAJA (si estaba después)
+    const descEnd = (cantidadIdxBefore !== -1) ? cantidadIdxBefore : (costoIdx - 1);
+    const desc = tokens.slice(i+2, descEnd).join(' ').trim();
+
+    // TOTAL: primer d.dd después de COSTO que no sea 0.00
+    let total = NaN;
+    for (let j = costoIdx+1; j < Math.min(costoIdx+12, tokens.length); j++){
+      if (isDec2(tokens[j]) && tokens[j] !== '0.00'){ total = parseFloat(tokens[j]); break; }
+    }
+
+    const precio = parseFloat(tokens[costoIdx]);
+    const upc = tokens[i];
+
     let flag = '';
-    if (!descripcion) flag = 'Sin descripción detectada';
+    if (!desc) flag = 'Sin descripción detectada';
     else if (isNaN(cantidad)) flag = 'Cantidad no detectada';
     else if (isNaN(precio)) flag = 'Precio no detectado';
+
     items.push({
-      codigo,
-      descripcion,
+      codigo: upc,
+      descripcion: desc,
       cantidad: isNaN(cantidad) ? '' : cantidad,
       precio: isNaN(precio) ? '' : precio,
       total: isNaN(total) ? '' : total,
       flag
     });
+
+    i = costoIdx;
   }
+
   return items;
 }
 
