@@ -531,7 +531,7 @@
   <header>
     <div class="header-row">
       <div class="header-copy">
-        <span class="eyebrow">● v12 · 3 formatos reconocidos: El Machetazo · Jumbo Market · PriceSmart</span>
+        <span class="eyebrow">● v19 · 3 formatos reconocidos: El Machetazo · Jumbo Market · PriceSmart</span>
         <h1>De orden de pedido en PDF<br>a planilla de Excel</h1>
         <p>Sube uno o varios PDF de órdenes de pedido, revisa y corrige las líneas extraídas, y exporta una sola hoja de Excel con código de barras, descripción, cantidad, precio unitario y total — con el archivo de origen en cada fila. Detecta automáticamente el formato de cada PDF.</p>
       </div>
@@ -1077,78 +1077,89 @@ async function parsePdf(arrayBuffer, fileName){
 // El PDF frecuentemente concatena TODAS las filas en un solo renglón, por eso usamos un
 // escáner GLOBAL sobre el texto completo, no un parser por línea.
 function parseFormat1_All(text){
-  const s = text.replace(/\s+/g, ' ').trim();
+  const s = text.replace(/\s+/g,' ').trim();
   const tokens = s.split(' ');
   const items = [];
-  const isUPC = t => /^\d{12,13}$/.test(t);
+
+  const isUPCsep = t => /^\d{11,13}$/.test(t);
+  const isUPCcat = t => /^\d{22,26}$/.test(t);
   const isRef = t => /^\d[\d_]{7,13}$/.test(t);
-  const isDec4 = t => /^\d+\.\d{4}$/.test(t);
-  const isDec3 = t => /^\d+\.\d{3}$/.test(t);
-  const isDec2 = t => /^\d+\.\d{2}$/.test(t);
-  const isInt = t => /^\d{1,5}$/.test(t);
+  const isDec = t => /^\d+\.\d{2,4}$/.test(t);
+  const isInt = t => /^\d{1,4}$/.test(t);
+  const isZero = t => /^0+\.0+$/.test(t);
+  const isEndMarker = t => /^CAJAS$/i.test(t);
 
-  for (let i = 0; i < tokens.length - 8; i++){
-    if (!isUPC(tokens[i])) continue;
-    if (!isRef(tokens[i+1])) continue;
-
-    // Buscar COSTO (d.dddd)
-    let costoIdx = -1;
-    for (let j = i+3; j < Math.min(i+20, tokens.length); j++){
-      if (isDec4(tokens[j])){ costoIdx = j; break; }
+  const productStarts = [];
+  for (let i = 0; i < tokens.length - 5; i++){
+    if (isUPCsep(tokens[i]) && isRef(tokens[i+1])){
+      productStarts.push({ idx: i, upc: tokens[i], descStart: i+2 });
+    } else if (isUPCcat(tokens[i])){
+      const len = tokens[i].length;
+      productStarts.push({ idx: i, upc: tokens[i].substring(0, Math.floor(len/2)), descStart: i+1 });
     }
-    if (costoIdx === -1) continue;
-    if (!isInt(tokens[costoIdx-1])) continue;   // UND_CAJA
+  }
 
-    // ==== Buscar CANTIDAD (d.ddd) — puede estar ANTES o DESPUÉS del COSTO ====
-    let cantidad = NaN;
-    let cantidadIdxBefore = -1;
+  for (let p = 0; p < productStarts.length; p++){
+    const cur = productStarts[p];
+    const next = productStarts[p+1];
 
-    // 1) Buscar ANTES de UND_CAJA (recorrer hacia atrás desde costoIdx-2 hasta i+2)
-    for (let k = costoIdx - 2; k > i + 1; k--){
-      if (isDec3(tokens[k])){
-        cantidad = parseFloat(tokens[k]);
-        cantidadIdxBefore = k;
+    let blockEnd = next ? next.idx : tokens.length;
+    for (let k = cur.descStart; k < blockEnd; k++){
+      if (isEndMarker(tokens[k])){ blockEnd = k; break; }
+    }
+
+    // Ancla: [UND_CAJA int] [COSTO dec] [0.00 desc]
+    let undCajaIdx = -1;
+    let costoIdx = -1;
+    for (let j = cur.descStart + 1; j < blockEnd - 2; j++){
+      if (isInt(tokens[j]) && isDec(tokens[j+1]) && isDec(tokens[j+2]) && isZero(tokens[j+2])){
+        undCajaIdx = j;
+        costoIdx = j+1;
         break;
       }
     }
+    if (costoIdx === -1) continue;
 
-    // 2) Si no se encontró antes, buscar DESPUÉS del COSTO
-    if (isNaN(cantidad)){
-      for (let j = costoIdx+1; j < Math.min(costoIdx+12, tokens.length); j++){
-        if (isDec3(tokens[j])){ cantidad = parseFloat(tokens[j]); break; }
+    const precio = parseFloat(tokens[costoIdx]);
+    let cantidad = NaN;
+    let descEnd = undCajaIdx;
+
+    // Formato NUEVO: cantidad decimal justo antes de UND_CAJA
+    if (undCajaIdx > cur.descStart && isDec(tokens[undCajaIdx-1])){
+      const cand = parseFloat(tokens[undCajaIdx-1]);
+      if (cand > 0){
+        cantidad = cand;
+        descEnd = undCajaIdx - 1;
       }
     }
 
-    // Descripción: hasta CANTIDAD (si estaba antes) o hasta UND_CAJA (si estaba después)
-    const descEnd = (cantidadIdxBefore !== -1) ? cantidadIdxBefore : (costoIdx - 1);
-    const desc = tokens.slice(i+2, descEnd).join(' ').trim();
-
-    // TOTAL: primer d.dd después de COSTO que no sea 0.00
-    let total = NaN;
-    for (let j = costoIdx+1; j < Math.min(costoIdx+12, tokens.length); j++){
-      if (isDec2(tokens[j]) && tokens[j] !== '0.00'){ total = parseFloat(tokens[j]); break; }
+    // Formato VIEJO: PEDIDAS = último decimal > 0 en el bloque
+    if (isNaN(cantidad)){
+      for (let k = blockEnd - 1; k > costoIdx; k--){
+        if (isDec(tokens[k])){
+          const v = parseFloat(tokens[k]);
+          if (v > 0){
+            cantidad = v;
+            break;
+          }
+        }
+      }
     }
 
-    const precio = parseFloat(tokens[costoIdx]);
-    const upc = tokens[i];
+    if (isNaN(cantidad)) continue;
 
-    let flag = '';
-    if (!desc) flag = 'Sin descripción detectada';
-    else if (isNaN(cantidad)) flag = 'Cantidad no detectada';
-    else if (isNaN(precio)) flag = 'Precio no detectado';
+    const desc = tokens.slice(cur.descStart, descEnd).join(' ').trim();
+    const total = Math.round(cantidad * precio * 100) / 100;
 
     items.push({
-      codigo: upc,
+      codigo: cur.upc,
       descripcion: desc,
-      cantidad: isNaN(cantidad) ? '' : cantidad,
-      precio: isNaN(precio) ? '' : precio,
-      total: isNaN(total) ? '' : total,
-      flag
+      cantidad,
+      precio,
+      total,
+      flag: ''
     });
-
-    i = costoIdx;
   }
-
   return items;
 }
 
