@@ -653,7 +653,7 @@
   <header>
     <div class="header-row">
       <div class="header-copy">
-        <span class="eyebrow">● v19 · 3 formatos reconocidos: El Machetazo · Jumbo Market · PriceSmart</span>
+        <span class="eyebrow">● v20 · 4 formatos reconocidos: El Machetazo · Jumbo Market · PriceSmart · Súper Xtra</span>
         <h1>De orden de pedido en PDF<br>a planilla de Excel</h1>
         <p>Sube uno o varios PDF de órdenes de pedido, revisa y corrige las líneas extraídas, y exporta una sola hoja de Excel con código de barras, descripción, cantidad, precio unitario y total — con el archivo de origen en cada fila. Detecta automáticamente el formato de cada PDF.</p>
       </div>
@@ -1170,11 +1170,14 @@ function getPageRows(content){
   });
 }
 
-const FORMAT_LABELS = { format1: 'MACHETAZO', format2: 'JUMBO MARKET', format3: 'PRICE SMART' };
+const FORMAT_LABELS = { format1: 'MACHETAZO', format2: 'JUMBO MARKET', format3: 'PRICE SMART', format4: 'SÚPER XTRA' };
 
 function detectFormat(rowsText){
   const t = rowsText.toUpperCase();
   if (t.includes('UPC/EAN') && (t.includes('ORDEN DE PEDIDO') || t.includes('REFERENCIA'))) return 'format1';
+  // Súper Xtra se detecta ANTES que Jumbo: su título "Pedido de Compras Nacional" contiene
+  // la subcadena "Pedido de Compra" y sería mal clasificado como formato2 si no se revisa primero.
+  if (t.includes('PEDIDO DE COMPRAS NACIONAL') || t.includes('SÚPER XTRA') || t.includes('SUPER XTRA') || (t.includes('CÓDIGO DE') && t.includes('BARRA') && t.includes('VALOR NETO'))) return 'format4';
   if (t.includes('PEDIDO DE COMPRA') || (t.includes('UD/CAJA') && t.includes('UDS.TOTAL'))) return 'format2';
   if (t.includes('PURCHASE ORDER') || (t.includes('ORDERED') && t.includes('UNIT COST') && t.includes('EXTENDED COST'))) return 'format3';
   return 'unknown';
@@ -1212,6 +1215,10 @@ async function parsePdf(arrayBuffer, fileName){
       }
     } else if (format === 'format3'){
       for (const it of parseFormat3Rows(rows)){
+        if (it.flag) flagged++; out.push({ archivo: fileName,format, ...it });
+      }
+    } else if (format === 'format4'){
+      for (const it of parseFormat4Rows(rows)){
         if (it.flag) flagged++; out.push({ archivo: fileName,format, ...it });
       }
     }
@@ -1457,6 +1464,31 @@ function parseFormat3Rows(rows){
       precio: unitCost,
       total: extCost,
       flag: codigo ? '' : 'Sin código de barras en el PDF'
+    });
+  }
+  return items;
+}
+
+// ---------- FORMATO 4: Súper Xtra — "Pedido de Compras Nacional" ----------
+// Cada producto ocupa un único renglón con este patrón fijo:
+//   CÓDIGO_BARRA  MAT  1  UN  DESCRIPCIÓN...  CANT(d.dd)  UN  PRECIO(d.dd)  DCTO% -  REC% -  VALOR_NETO(d.dd)
+// Ejemplo real: "7441029524895 10603892 1 UN PAN BUTTER TOP BIMBO 1P 690G 14.00 UN 2.13 0.00 - 0.00 - 29.82"
+const FORMAT4_LINE_RE = /^(\d{7,14})\s+(\d{4,10})\s+1\s+UN\s+(.+?)\s+(\d+(?:[.,]\d{2}))\s+UN\s+(\d+(?:[.,]\d{2}))\s+[\d.,]+\s+-\s+[\d.,]+\s+-\s+(\d+(?:[.,]\d{2}))\s*$/i;
+
+function parseFormat4Rows(rows){
+  const items = [];
+  for (const raw of rows){
+    const line = raw.replace(/\s+/g, ' ').trim();
+    const m = line.match(FORMAT4_LINE_RE);
+    if (!m) continue;
+    const [, codigo, , descripcion, cantStr, precioStr, totalStr] = m;
+    items.push({
+      codigo,
+      descripcion: descripcion.trim(),
+      cantidad: parseFloat(cantStr.replace(',', '.')),
+      precio: parseFloat(precioStr.replace(',', '.')),
+      total: parseFloat(totalStr.replace(',', '.')),
+      flag: ''
     });
   }
   return items;
