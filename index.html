@@ -1325,7 +1325,7 @@ function parseFormat1Line(line){
   return items.length > 0 ? items[0] : null;
 }
 
-// ---------- FORMATO 2: "Nutriamericas / Jumbo Market" — PEDIDO DE COMPRA ----------
+// ---------- FORMATO 2: "Jumbo Market" — PEDIDO DE COMPRA ----------
 // Comprobado contra la extracción real del PDF: cada producto trae un renglón PRINCIPAL con
 // código interno + (la primera línea de la) descripción + CAJAS + UD/CAJA + UDS.TOTAL + PRECIO
 // + IMPORTE, todo junto. Debajo puede haber 0, 1 o más renglones de continuación de la
@@ -1339,7 +1339,7 @@ function parseFormat1Line(line){
 //   (el código de barras puede tener 8, 12 o 13 dígitos según el producto — no asumimos un largo fijo)
 function looksLikeItemCodeStart(tok1, tok2){
   if (!tok1 || !tok2) return false;
-  if (!/^[A-Za-z0-9]{3,10}$/.test(tok1)) return false;
+  if (!/^[A-Za-z0-9-]{3,11}$/.test(tok1)) return false;
   if (!/\d/.test(tok1)) return false;                          // el código interno siempre trae dígitos
   if (/^\d+$/.test(tok1) && tok1.length > 8) return false;      // muy largo para ser código interno
   if (!/^[A-ZÁÉÍÓÚÑ]/.test(tok2)) return false;                 // la descripción empieza en mayúscula
@@ -1420,7 +1420,7 @@ function parseFormat2Rows(rows){
 // ---------- FORMATO 3: PriceSmart — PURCHASE ORDER ----------
 // Estructura real del PDF:
 //   LÍNEA PRINCIPAL : QTY  "EA"  ITEM_NO  DESCRIPCIÓN...  UNIT_COST  EXTENDED_COST
-//   LÍNEA DE BARCODE: "7441029514834, Bimbo"  o  "7441029518993,"  (el código termina con coma)
+//   LÍNEA DE BARCODE: "7441029514834, Bi"  o  "7441029518993,"  (el código termina con coma)
 // El primer producto a veces no tiene código de barras en el PDF — se marca para revisar.
 function isMainItemRowPS(tokens){
   if (tokens.length < 5) return false;
@@ -1472,7 +1472,7 @@ function parseFormat3Rows(rows){
 // ---------- FORMATO 4: Súper Xtra — "Pedido de Compras Nacional" ----------
 // Cada producto ocupa un único renglón con este patrón fijo:
 //   CÓDIGO_BARRA  MAT  1  UN  DESCRIPCIÓN...  CANT(d.dd)  UN  PRECIO(d.dd)  DCTO% -  REC% -  VALOR_NETO(d.dd)
-// Ejemplo real: "7441029524895 10603892 1 UN PAN BUTTER TOP BIMBO 1P 690G 14.00 UN 2.13 0.00 - 0.00 - 29.82"
+// Ejemplo real: "7441029524895 10603892 1 UN PAN BUTTER TOP  1P 690G 14.00 UN 2.13 0.00 - 0.00 - 29.82"
 const FORMAT4_LINE_RE = /^(\d{7,14})\s+(\d{4,10})\s+1\s+UN\s+(.+?)\s+(\d+(?:[.,]\d{2}))\s+UN\s+(\d+(?:[.,]\d{2}))\s+[\d.,]+\s+-\s+[\d.,]+\s+-\s+(\d+(?:[.,]\d{2}))\s*$/i;
 
 function parseFormat4Rows(rows){
