@@ -1808,29 +1808,91 @@ async function genTemplate(chain){
     if(!extPath){tst('No se encontró ruta',false);return;}
     let extStr=await zip.file(extPath).async('string');
     let sB='', sC='', sD='';
-    const row2M=extStr.match(/<row\s+r="2"[\s\S]*?<\/row>/);
+    const row2M=extStr.match(/<row\s+r="2"[^>]*>[\s\S]*?<\/row>/);
     if(row2M){
       const r2=row2M[0];
       const cB=r2.match(/<c\s+r="B2"[^>]*?s="(\d+)"/); if(cB) sB=cB[1];
       const cC=r2.match(/<c\s+r="C2"[^>]*?s="(\d+)"/); if(cC) sC=cC[1];
       const cD=r2.match(/<c\s+r="D2"[^>]*?s="(\d+)"/); if(cD) sD=cD[1];
     }
-    extStr=extStr.replace(/<row\s+r="([2-9]|[1-9]\d+)"[\s\S]*?<\/row>/g,'');
-    let newRows='';
+
+    // Mapea las filas ya existentes en la plantilla (2..N) SIN borrarlas.
+    // Las columnas A (CODIGOS, lista maestra) y E (VALIDACION, fórmula BUSCARV)
+    // deben quedarse intactas; solo tocamos B (código), C (cantidad) y D (ruta).
+    const existingRows={};
+    let maxExistingRow=1;
+    const rowRe=/<row\s+r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g;
+    let rmatch;
+    while((rmatch=rowRe.exec(extStr))!==null){
+      const rn=parseInt(rmatch[1],10);
+      if(rn<2) continue;
+      existingRows[rn]={attrs:rmatch[2], inner:rmatch[3], full:rmatch[0]};
+      if(rn>maxExistingRow) maxExistingRow=rn;
+    }
+
+    function cellsOf(inner){
+      const map={};
+      const cRe=/<c\s+r="([A-Z]+)\d+"[^>]*?(?:\/>|>[\s\S]*?<\/c>)/g;
+      let cm;
+      while((cm=cRe.exec(inner))!==null) map[cm[1]]=cm[0];
+      return map;
+    }
+    function buildCell(col,rn,val,styleAttr){
+      return `<c r="${col}${rn}"${styleAttr}><v>${val}</v></c>`;
+    }
+    function styleFor(rn,col,fallback){
+      const ex=existingRows[rn];
+      if(ex){
+        const m=cellsOf(ex.inner)[col];
+        if(m){ const sM=m.match(/s="(\d+)"/); if(sM) return ` s="${sM[1]}"`; }
+      }
+      return fallback?` s="${fallback}"`:'';
+    }
+    function reassemble(map){
+      return Object.keys(map).sort((a,b)=>colKey(a+'1')-colKey(b+'1')).map(k=>map[k]).join('');
+    }
+
+    // Filas con datos del pedido actual: se preservan A y E de la plantilla,
+    // solo se escriben/actualizan B, C y D.
     for(let i=0;i<rows.length;i++){
       const rn=2+i;
-      const sBattr=sB?` s="${sB}"`:'';
-      const sCattr=sC?` s="${sC}"`:'';
-      const sDattr=sD?` s="${sD}"`:'';
-      newRows+=`<row r="${rn}" spans="1:4">`+
-        `<c r="B${rn}"${sBattr}><v>${rows[i].code}</v></c>`+
-        `<c r="C${rn}"${sCattr}><v>${rows[i].qty}</v></c>`+
-        `<c r="D${rn}"${sDattr}><v>${rows[i].route}</v></c>`+
-        `</row>`;
+      const cellB=buildCell('B',rn,rows[i].code,styleFor(rn,'B',sB));
+      const cellC=buildCell('C',rn,rows[i].qty,styleFor(rn,'C',sC));
+      const cellD=buildCell('D',rn,rows[i].route,styleFor(rn,'D',sD));
+      if(existingRows[rn]){
+        const map=cellsOf(existingRows[rn].inner);
+        map['B']=cellB; map['C']=cellC; map['D']=cellD;
+        const newRow=`<row r="${rn}"${existingRows[rn].attrs}>${reassemble(map)}</row>`;
+        extStr=extStr.replace(existingRows[rn].full,newRow);
+      }else{
+        // La plantilla no traía esta fila (pedido más largo que la lista
+        // maestra): se agrega solo con B/C/D, ya que no hay A/E para ella.
+        const newRow=`<row r="${rn}" spans="1:4">${cellB}${cellC}${cellD}</row>`;
+        extStr=extStr.replace('</sheetData>',newRow+'</sheetData>');
+      }
     }
-    extStr=extStr.replace('</sheetData>', newRows+'</sheetData>');
-    const lastRow=Math.max(rows.length+1,100);
-    extStr=extStr.replace(/<dimension\s+ref="[^"]*"\s*\/?>/,`<dimension ref="A1:D${lastRow}"/>`);
+
+    // Filas sobrantes de una corrida anterior (más allá del pedido actual):
+    // se limpian B/C/D para no arrastrar datos viejos, pero A y E no se tocan.
+    for(let rn=rows.length+2; rn<=maxExistingRow; rn++){
+      if(!existingRows[rn]) continue;
+      const map=cellsOf(existingRows[rn].inner);
+      let changed=false;
+      ['B','C','D'].forEach(col=>{
+        if(map[col]){
+          const sM=map[col].match(/s="(\d+)"/);
+          map[col]=`<c r="${col}${rn}"${sM?` s="${sM[1]}"`:''}/>`;
+          changed=true;
+        }
+      });
+      if(changed){
+        const newRow=`<row r="${rn}"${existingRows[rn].attrs}>${reassemble(map)}</row>`;
+        extStr=extStr.replace(existingRows[rn].full,newRow);
+      }
+    }
+
+    const lastRow=Math.max(rows.length+1,maxExistingRow,100);
+    extStr=extStr.replace(/<dimension\s+ref="[^"]*"\s*\/?>/,`<dimension ref="A1:E${lastRow}"/>`);
     zip.file(extPath,extStr);
     if(cfg.dateCells && cfg.dateCells.length){
       for(const info of sheetInfos){
