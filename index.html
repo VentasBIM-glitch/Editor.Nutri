@@ -1339,7 +1339,7 @@ function parseFormat1Line(line){
 //   (el código de barras puede tener 8, 12 o 13 dígitos según el producto — no asumimos un largo fijo)
 function looksLikeItemCodeStart(tok1, tok2){
   if (!tok1 || !tok2) return false;
-  if (!/^[A-Za-z0-9-]{3,11}$/.test(tok1)) return false;
+  if (!/^[A-Za-z0-9-]{3,18}$/.test(tok1)) return false;
   if (!/\d/.test(tok1)) return false;                          // el código interno siempre trae dígitos
   if (/^\d+$/.test(tok1) && tok1.length > 8) return false;      // muy largo para ser código interno
   if (!/^[A-ZÁÉÍÓÚÑ]/.test(tok2)) return false;                 // la descripción empieza en mayúscula
