@@ -3459,6 +3459,35 @@ render();
 
   let currentFile = null; // File
   let currentDoc = null;  // PDFDocument
+  let pageStoreNames = []; // nombre de tienda (Súper Xtra) detectado por página, o null
+
+  function sanitizeFilename(name){
+    return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  // Detecta, página por página, si es un "Pedido de Compras Nacional" (Súper Xtra) y
+  // extrae el nombre de la tienda destino (línea con patrón "T### - Nombre de Tienda").
+  async function detectXtraStoreNames(bytes, count){
+    const names = new Array(count).fill(null);
+    try {
+      const pdfJsDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+      for (let p = 1; p <= pdfJsDoc.numPages; p++){
+        const page = await pdfJsDoc.getPage(p);
+        const content = await page.getTextContent();
+        const rows = getPageRows(content);
+        const joined = rows.join(' ').toUpperCase();
+        if (!joined.includes('PEDIDO DE COMPRAS NACIONAL')) continue;
+        const storeLine = rows.find(r => /^T\d{3}\s*-\s*.+/.test(r.trim()));
+        if (storeLine){
+          const m = storeLine.trim().match(/^T\d{3}\s*-\s*(.+)$/);
+          if (m) names[p - 1] = sanitizeFilename(m[1]);
+        }
+      }
+    } catch (err){
+      console.error('No se pudo detectar tiendas Súper Xtra:', err);
+    }
+    return names;
+  }
   let pageCount = 0;
 
   dropSplitEl.addEventListener('click', () => fileInputSplit.click());
@@ -3509,6 +3538,12 @@ render();
       modeChoice.style.display = 'flex';
       controlsSplit.style.display = 'flex';
       setStatusSplit('', '');
+
+      // Detectar en segundo plano si hay páginas de Súper Xtra para nombrar los archivos
+      // con el nombre de la tienda en vez de "pagina_N".
+      pageStoreNames = new Array(pageCount).fill(null);
+      const bytesForJs = await f.arrayBuffer();
+      pageStoreNames = await detectXtraStoreNames(bytesForJs, pageCount);
     } catch (err){
       console.error(err);
       currentFile = null;
@@ -3521,6 +3556,7 @@ render();
     currentFile = null;
     currentDoc = null;
     pageCount = 0;
+    pageStoreNames = [];
     splitInfo.style.display = 'none';
     modeChoice.style.display = 'none';
     rangesBox.classList.remove('show');
@@ -3581,9 +3617,22 @@ render();
 
     let jobs = []; // { name, indices }
 
+    const usedNames = {};
+    function uniqueName(base){
+      let candidate = `${base}.pdf`;
+      let n = 2;
+      while (usedNames[candidate]){ candidate = `${base} (${n}).pdf`; n++; }
+      usedNames[candidate] = true;
+      return candidate;
+    }
+
     if (mode === 'each'){
       for (let i = 0; i < pageCount; i++){
-        jobs.push({ name: `${bname}_pagina_${String(i+1).padStart(String(pageCount).length,'0')}.pdf`, indices: [i] });
+        const store = pageStoreNames[i];
+        const name = store
+          ? uniqueName(store)
+          : uniqueName(`${bname}_pagina_${String(i+1).padStart(String(pageCount).length,'0')}`);
+        jobs.push({ name, indices: [i] });
       }
     } else {
       const parsed = parseRanges(rangesInput.value, pageCount);
@@ -3592,7 +3641,11 @@ render();
         return;
       }
       parsed.groups.forEach((g, i) => {
-        jobs.push({ name: `${bname}_${String(i+1).padStart(2,'0')}_pag${g.label}.pdf`, indices: g.indices });
+        const store = g.indices.length ? pageStoreNames[g.indices[0]] : null;
+        const name = store
+          ? uniqueName(store)
+          : uniqueName(`${bname}_${String(i+1).padStart(2,'0')}_pag${g.label}`);
+        jobs.push({ name, indices: g.indices });
       });
     }
 
