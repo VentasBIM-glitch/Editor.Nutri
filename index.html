@@ -2346,7 +2346,7 @@ function parseFormat3Rows(rows){
 // Cada producto ocupa un único renglón con este patrón fijo:
 //   CÓDIGO_BARRA  MAT  1  UN  DESCRIPCIÓN...  CANT(d.dd)  UN  PRECIO(d.dd)  DCTO% -  REC% -  VALOR_NETO(d.dd)
 // Ejemplo real: "7441029524895 10603892 1 UN PAN BUTTER TOP  1P 690G 14.00 UN 2.13 0.00 - 0.00 - 29.82"
-const FORMAT4_LINE_RE = /^(\d{7,14})\s+(\d{4,10})\s+1\s+UN\s+(.+?)\s+(\d+(?:[.,]\d{2}))\s+UN\s+(\d+(?:[.,]\d{2}))\s+[\d.,]+\s+-\s+[\d.,]+\s+-\s+(\d+(?:[.,]\d{2}))\s*$/i;
+const FORMAT4_LINE_RE = /^(\d{7,14})\s+(\d{4,10})\s+\d+\s+UN\s+(.+?)\s+(\d+(?:[.,]\d{2}))\s+[A-Z]{2,4}\s+(\d+(?:[.,]\d{2}))\s+[\d.,]+\s+-\s+[\d.,]+\s+-\s+(\d+(?:[.,]\d{2}))\s*$/i;
 
 function parseFormat4Rows(rows){
   const items = [];
