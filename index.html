@@ -3485,8 +3485,8 @@ render();
         if (!joined.includes('PEDIDO DE COMPRAS NACIONAL')) continue;
         const storeLine = rows.find(r => /^T\d{3}\s*-\s*.+/.test(r.trim()));
         if (storeLine){
-          const m = storeLine.trim().match(/^T\d{3}\s*-\s*(.+)$/);
-          if (m) names[p - 1] = sanitizeFilename(m[1]);
+          const m = storeLine.trim().match(/^T(\d{3})\s*-\s*(.+)$/);
+          if (m) names[p - 1] = sanitizeFilename(`T${m[1]} - ${m[2]}`);
         }
       }
     } catch (err){
