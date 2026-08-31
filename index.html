@@ -3567,19 +3567,25 @@ render();
       controlsSplit.style.display = 'flex';
       setStatusSplit('', '');
 
-      // Detectar en segundo plano si hay páginas de Súper Xtra para nombrar los archivos
-      // con el nombre de la tienda en vez de "pagina_N".
+      // Detectar tiendas Súper Xtra para nombrar los archivos con el nombre de la
+      // tienda en vez de "pagina_N". Se bloquea el botón de generar mientras corre,
+      // para que no se pueda dividir antes de que termine (si no, sale todo genérico).
       pageStoreNames = new Array(pageCount).fill(null);
       pageIsOrderStart = new Array(pageCount).fill(false);
+      generateSplitBtn.disabled = true;
+      setStatusSplit('Detectando tiendas…', 'working');
       const bytesForJs = await f.arrayBuffer();
       const detected = await detectXtraStoreNames(bytesForJs, pageCount);
       pageStoreNames = detected.names;
       pageIsOrderStart = detected.isOrderStart;
       splitModeStoreOption.style.display = pageStoreNames.some(n => n) ? 'flex' : 'none';
+      generateSplitBtn.disabled = false;
+      setStatusSplit('', '');
     } catch (err){
       console.error(err);
       currentFile = null;
       currentDoc = null;
+      generateSplitBtn.disabled = false;
       setStatusSplit('No se pudo leer el PDF: ' + err.message, 'error');
     }
   }
@@ -3597,6 +3603,7 @@ render();
     rangesBox.classList.remove('show');
     controlsSplit.style.display = 'none';
     rangesInput.value = '';
+    generateSplitBtn.disabled = false;
     setStatusSplit('', '');
   });
 
