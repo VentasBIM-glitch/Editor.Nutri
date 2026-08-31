@@ -1602,6 +1602,13 @@
             <span class="mo-sub">Definí vos los grupos de páginas de cada PDF resultante.</span>
           </span>
         </label>
+        <label class="mode-option" id="splitModeStoreOption" style="display:none;">
+          <input type="radio" name="splitMode" value="store">
+          <span>
+            <span class="mo-title">Un PDF por pedido/tienda</span>
+            <span class="mo-sub">Agrupa automáticamente las páginas de continuación de cada pedido Súper Xtra y nombra el archivo con la tienda.</span>
+          </span>
+        </label>
       </div>
 
       <div class="ranges-box" id="splitRangesBox">
@@ -3456,6 +3463,7 @@ render();
   const splitFileName = document.getElementById('splitFileName');
   const splitFilePages = document.getElementById('splitFilePages');
   const modeChoice = document.getElementById('splitModeChoice');
+  const splitModeStoreOption = document.getElementById('splitModeStoreOption');
   const rangesBox = document.getElementById('splitRangesBox');
   const rangesInput = document.getElementById('splitRanges');
   const controlsSplit = document.getElementById('splitControls');
@@ -3465,7 +3473,8 @@ render();
 
   let currentFile = null; // File
   let currentDoc = null;  // PDFDocument
-  let pageStoreNames = []; // nombre de tienda (Súper Xtra) detectado por página, o null
+  let pageStoreNames = []; // nombre de tienda (Súper Xtra) detectado por página, o null (incluye herencia en páginas de continuación)
+  let pageIsOrderStart = []; // true si la página trae encabezado "Pedido de Compras Nacional" (arranca un pedido nuevo)
 
   function sanitizeFilename(name){
     return name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
@@ -3473,8 +3482,13 @@ render();
 
   // Detecta, página por página, si es un "Pedido de Compras Nacional" (Súper Xtra) y
   // extrae el nombre de la tienda destino (línea con patrón "T### - Nombre de Tienda").
+  // Cada pedido Súper Xtra suele venir en 2+ páginas: solo la primera trae el encabezado
+  // "Pedido de Compras Nacional" y la línea de tienda; las siguientes son continuación sin
+  // esa info. isOrderStart marca en qué páginas arranca un pedido nuevo, para poder agrupar
+  // las páginas de continuación bajo el mismo nombre de tienda.
   async function detectXtraStoreNames(bytes, count){
     const names = new Array(count).fill(null);
+    const isOrderStart = new Array(count).fill(false);
     try {
       const pdfJsDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
       for (let p = 1; p <= pdfJsDoc.numPages; p++){
@@ -3483,16 +3497,24 @@ render();
         const rows = getPageRows(content);
         const joined = rows.join(' ').toUpperCase();
         if (!joined.includes('PEDIDO DE COMPRAS NACIONAL')) continue;
+        isOrderStart[p - 1] = true;
         const storeLine = rows.find(r => /^T\d{3}\s*-\s*.+/.test(r.trim()));
         if (storeLine){
           const m = storeLine.trim().match(/^T(\d{3})\s*-\s*(.+)$/);
           if (m) names[p - 1] = sanitizeFilename(`T${m[1]} - ${m[2]}`);
         }
       }
+      // Propaga el nombre de tienda a las páginas de continuación (las que no
+      // arrancan un pedido nuevo), para que hereden el nombre de la página anterior.
+      for (let i = 1; i < count; i++){
+        if (!isOrderStart[i] && names[i - 1]){
+          names[i] = names[i - 1];
+        }
+      }
     } catch (err){
       console.error('No se pudo detectar tiendas Súper Xtra:', err);
     }
-    return names;
+    return { names, isOrderStart };
   }
   let pageCount = 0;
 
@@ -3548,8 +3570,12 @@ render();
       // Detectar en segundo plano si hay páginas de Súper Xtra para nombrar los archivos
       // con el nombre de la tienda en vez de "pagina_N".
       pageStoreNames = new Array(pageCount).fill(null);
+      pageIsOrderStart = new Array(pageCount).fill(false);
       const bytesForJs = await f.arrayBuffer();
-      pageStoreNames = await detectXtraStoreNames(bytesForJs, pageCount);
+      const detected = await detectXtraStoreNames(bytesForJs, pageCount);
+      pageStoreNames = detected.names;
+      pageIsOrderStart = detected.isOrderStart;
+      splitModeStoreOption.style.display = pageStoreNames.some(n => n) ? 'flex' : 'none';
     } catch (err){
       console.error(err);
       currentFile = null;
@@ -3563,8 +3589,11 @@ render();
     currentDoc = null;
     pageCount = 0;
     pageStoreNames = [];
+    pageIsOrderStart = [];
     splitInfo.style.display = 'none';
     modeChoice.style.display = 'none';
+    splitModeStoreOption.style.display = 'none';
+    document.querySelector('input[name="splitMode"][value="each"]').checked = true;
     rangesBox.classList.remove('show');
     controlsSplit.style.display = 'none';
     rangesInput.value = '';
@@ -3640,6 +3669,27 @@ render();
           : uniqueName(`${bname}_pagina_${String(i+1).padStart(String(pageCount).length,'0')}`);
         jobs.push({ name, indices: [i] });
       }
+    } else if (mode === 'store'){
+      // Agrupa páginas consecutivas del mismo pedido: cada página que trae el encabezado
+      // "Pedido de Compras Nacional" arranca un grupo nuevo; las siguientes páginas sin
+      // encabezado se suman al grupo anterior (son su continuación).
+      let currentGroup = null;
+      for (let i = 0; i < pageCount; i++){
+        const startsNew = pageIsOrderStart[i] || !currentGroup;
+        if (startsNew){
+          if (currentGroup) jobs.push(currentGroup);
+          currentGroup = { store: pageStoreNames[i], indices: [i] };
+        } else {
+          currentGroup.indices.push(i);
+        }
+      }
+      if (currentGroup) jobs.push(currentGroup);
+      jobs = jobs.map((g, i) => ({
+        name: g.store
+          ? uniqueName(g.store)
+          : uniqueName(`${bname}_pedido_${String(i+1).padStart(2,'0')}`),
+        indices: g.indices
+      }));
     } else {
       const parsed = parseRanges(rangesInput.value, pageCount);
       if (parsed.error){
